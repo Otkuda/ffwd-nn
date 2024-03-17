@@ -1,5 +1,5 @@
 import numpy as np
-from Activation import sigmoid
+from Activation import sigmoid, sigmoidDerivative
 
 class Layer:
 
@@ -32,6 +32,41 @@ class Layer:
             activations[nodeOut] = sigmoid(weightedInput)
         
         return activations
+    
+    # passing data through NN and saving data to learnData obj
+    def calculateOutputs(self, inputs, learnData):
+        learnData.inputs = inputs
+
+        for nodeOut in range(self.n_nodes_out):
+            weightedInput = self.biases[nodeOut] 
+            for nodeIn in range(self.n_nodes_in):
+                weightedInput += inputs[nodeIn] * self.weights[nodeIn, nodeOut]
+            learnData.weightedInputs[nodeOut] = weightedInput
+            learnData.activations[nodeOut] = sigmoid(weightedInput)
+
+        return learnData.activations
+
+    def calculateOutputLayerNodeValues(self, layerLearnData, expectedOutputs):
+        for i in range(len(len(layerLearnData.nodeValues))):
+            costDerivative = self.costDerivative(layerLearnData.activations[i], expectedOutputs[i])
+            activationDerivative = sigmoidDerivative(layerLearnData.weightedInputs[i])
+            layerLearnData.nodeValues = costDerivative * activationDerivative
+
+    def calculateHiddenLayerNodeValues(self, layerLearnData, oldLayer, oldNodeValues):
+        for newNodeIndex in range(self.n_nodes_out):
+            newNodeValue = 0
+            for oldNodeIndex in range(len(oldNodeValues)):
+                weightedInputDerivative = oldLayer.weights[newNodeIndex, oldNodeIndex]
+                newNodeValue += weightedInputDerivative * oldNodeValues[oldNodeIndex]
+            newNodeValue *= sigmoidDerivative(layerLearnData.weightedInputs[newNodeIndex])
+            layerLearnData.nodeValues[newNodeIndex] = newNodeValue
+
+    def updateGradients(self, layerLearnData):
+        for nodeOut in range(self.n_nodes_out):
+            nodeValue = layerLearnData.nodeValues[nodeOut]
+            for nodeIn in range(self.n_nodes_in):
+                self.costGradientW[nodeIn, nodeOut] += layerLearnData.inputs[nodeIn] * nodeValue
+            self.costGradientB += nodeValue
 
     def initRandomWeights(self):
         for el in self.weights:
@@ -44,19 +79,3 @@ class Layer:
     def costDerivative(self, outputActivation, expectedOutput):
         return 2 * (outputActivation - expectedOutput)
     
-
-class NetworkLearnData:
-
-    def __init__(self, layers) -> None:
-        self.layerData = np.empty(len(layers))
-
-        for i in range(len(layers)):
-            self.layerData[i] = LayerLearnData(layers[i])
-
-
-class LayerLearnData:
-
-    def __init__(self, layer) -> None:
-        self.weightedInputs = np.empty(layer.n_nodes_out)
-        self.activations = np.empty(layer.n_nodes_out)
-        self.nodeValues = np.empty(layer.n_nodes_out)
